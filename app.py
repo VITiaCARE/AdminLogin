@@ -45,7 +45,6 @@ def login():
 @app.route(app_config.REDIRECT_PATH)
 def auth_response():
     session.redir_uri = request.args.get('redir_uri', session.get('redir_uri', ''))
-    print(session)
     result = auth.complete_log_in(request.args)
     if "error" in result:
         return render_template("auth_error.html", result=result)
@@ -100,5 +99,5 @@ def call_downstream_api():
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run()
  
