@@ -1,3 +1,5 @@
+import json
+import os
 import identity.web
 import requests
 from flask import Flask, redirect, render_template, request, session, url_for
@@ -16,33 +18,39 @@ Session(app)
 # generate http scheme when this sample is running on localhost,
 # and to generate https scheme when it is deployed behind reversed proxy.
 # See also https://flask.palletsprojects.com/en/2.2.x/deploying/proxy_fix/
-from werkzeug.middleware.proxy_fix import ProxyFix
-app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+# from werkzeug.middleware.proxy_fix import ProxyFix
+# app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 app.jinja_env.globals.update(Auth=identity.web.Auth)  # Useful in template for B2C
 auth = identity.web.Auth(
     session=session,
     authority=app.config["AUTHORITY"],
     client_id=app.config["CLIENT_ID"],
-    client_credential=app.config["CLIENT_SECRET"],
+    client_credential=app.config["CLIENT_SECRET"], 
 )
 
 
 @app.route("/login")
 def login():
-    return render_template("login.html", version=__version__, **auth.log_in(
+    session.redir_uri = request.args.get('redir_uri', session.get('redir_uri', ''))
+    redir_uri = request.args.get('redir_uri', session.get('redir_uri', url_for("auth_response", _external=True)))
+    user_auth = auth.log_in(
         scopes=app_config.SCOPE, # Have user consent to scopes during log-in
-        redirect_uri=url_for("auth_response", _external=True), # Optional. If present, this absolute URL must match your app's redirect_uri registered in Azure Portal
+        redirect_uri=redir_uri, # Optional. If present, this absolute URL must match your app's redirect_uri registered in Azure Portal
         prompt="select_account",  # Optional. More values defined in  https://openid.net/specs/openid-connect-core-1_0.html#AuthRequest
-        ))
+        )
+    return render_template("login.html", version=__version__, **user_auth)
 
 
 @app.route(app_config.REDIRECT_PATH)
 def auth_response():
+    session.redir_uri = request.args.get('redir_uri', session.get('redir_uri', ''))
+    print(session)
     result = auth.complete_log_in(request.args)
     if "error" in result:
         return render_template("auth_error.html", result=result)
     return redirect(url_for("index"))
+        
 
 
 @app.route("/logout")
@@ -52,12 +60,20 @@ def logout():
 
 @app.route("/")
 def index():
+    session.redir_uri = request.args.get('redir_uri', session.get('redir_uri', ''))
     if not (app.config["CLIENT_ID"] and app.config["CLIENT_SECRET"]):
         # This check is not strictly necessary.
         # You can remove this check from your production code.
         return render_template('config_error.html')
     if not auth.get_user():
         return redirect(url_for("login"))
+        return render_template("auth_error.html", result=result)
+    acceptable_redir = json.loads(os.getenv('ACCEPTED_REDIR_URIS', []))
+    token = auth.get_token_for_user(app_config.SCOPE)
+    if "error" in token:
+        return redirect(url_for("login"))
+    if session.get('redir_uri', '') != '':
+        return redirect(session.get('redir_uri', '') + f"?access_token={token['access_token']}")
     return render_template('index.html', user=auth.get_user(), version=__version__)
 
 
@@ -72,8 +88,17 @@ def call_downstream_api():
         headers={'Authorization': 'Bearer ' + token['access_token']},
         timeout=30,
     ).json()
+    api_result = requests.get(
+        f"https://graph.microsoft.com/v1.0/me/memberOf",
+        headers={'Authorization': 'Bearer ' + token['access_token']},
+        timeout=30,
+    ).json()
+    for g in api_result.get('value'):
+        print(f"{g.get('id')} | {g.get('displayName')}")
+
     return render_template('display.html', result=api_result)
 
 
 if __name__ == "__main__":
-    app.run()
+    app.run(debug=True)
+ 

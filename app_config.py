@@ -1,5 +1,7 @@
 import os
+from env import envset
 
+envset()
 
 if (os.getenv('B2C_TENANT_NAME')
     and os.getenv('SIGNUPSIGNIN_USER_FLOW') and os.getenv('EDITPROFILE_USER_FLOW')):
@@ -38,7 +40,7 @@ ENDPOINT = 'https://graph.microsoft.com/v1.0/me'  # This resource requires no ad
 
 # You can find the proper permission names from this document
 # https://docs.microsoft.com/en-us/graph/permissions-reference
-SCOPE = ["User.Read"]
+SCOPE = ["User.Read", "GroupMember.Read.All"]
 
 # Tells the Flask-session extension to store sessions in the filesystem
 SESSION_TYPE = "filesystem"
