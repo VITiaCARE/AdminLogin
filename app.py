@@ -152,13 +152,15 @@ def call_downstream_api():
 @app.route("/token/<token_id>")
 def user_token(token_id):
     request_origin = request.headers.get('Origin', '')
+    print(request.headers)
     values = list(container.query_items(
-            query=f"SELECT * FROM access z WHERE z.id = @val AND z.redir_uri = @source",
+            query=f"SELECT * FROM access z WHERE z.id = @val AND (z.redir_uri = @source or z.redir_uri like '{request_origin}/%')",
             parameters=[
                 {"name": "@val", "value": token_id},
                 {"name": "@source", "value": request_origin}
             ],
             enable_cross_partition_query=True))
+    print(f"SELECT * FROM access z WHERE z.id = {token_id} AND z.redir_uri like {request_origin}")
     for v in values:
         v.pop('_self', None)
         v.pop('_ts', None)
