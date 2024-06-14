@@ -8,3 +8,4 @@ identity==0.5.2
 python-dotenv==0.21.1
 gunicorn==20.1.0
 azure-cosmos==4.7.0
+flask_cors==4.0.1

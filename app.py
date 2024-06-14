@@ -4,6 +4,7 @@ import identity.web
 import requests
 from flask import Flask, redirect, render_template, request, session, url_for, jsonify
 from flask_session import Session
+from flask_cors import CORS
 
 import app_config
 
@@ -12,6 +13,7 @@ app = Flask(__name__)
 app.config.from_object(app_config)
 assert app.config["REDIRECT_PATH"] != "/", "REDIRECT_PATH must not be /"
 Session(app)
+CORS(app)
 
 # This section is needed for url_for("foo", _external=True) to automatically
 # generate http scheme when this sample is running on localhost,
