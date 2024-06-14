@@ -149,7 +149,6 @@ def call_downstream_api():
 
 @app.route("/token/<token_id>")
 def user_token(token_id):
-    print(request.headers)
     request_origin = request.headers.get('Origin', '')
     values = list(container.query_items(
             query=f"SELECT * FROM access z WHERE z.id = @val AND z.redir_uri = @source",
