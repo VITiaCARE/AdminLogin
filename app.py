@@ -39,12 +39,25 @@ container.read()
 
 @app.route("/login")
 def login():
-    user_auth = auth.log_in(
-        scopes=app_config.SCOPE, # Have user consent to scopes during log-in
-        redirect_uri= url_for("auth_response", _external=True), # Optional. If present, this absolute URL must match your app's redirect_uri registered in Azure Portal
-        prompt="select_account",  # Optional. More values defined in  https://openid.net/specs/openid-connect-core-1_0.html#AuthRequest
-        )
-    return render_template("login.html", **user_auth)
+    if not (app.config["CLIENT_ID"] and app.config["CLIENT_SECRET"]):
+        # This check is not strictly necessary.
+        # You can remove this check from your production code.
+        return render_template('config_error.html')
+    acceptable_redir = json.loads(os.getenv('ACCEPTED_REDIR_URIS', []))
+    redir_dict = { 'redir_uri' : ''}
+    if request.args.get('redir_uri', '') != '' and max([request.args.get('redir_uri').find(uri) for uri in acceptable_redir]) == 0:
+        redir_dict = dict(id=f"{session.sid}", redir_uri=request.args.get('redir_uri'), user_id='anon')
+        container.upsert_item(
+                body=redir_dict
+            )
+    if not auth.get_user():
+        user_auth = auth.log_in(
+            scopes=app_config.SCOPE, # Have user consent to scopes during log-in
+            redirect_uri= url_for("auth_response", _external=True), # Optional. If present, this absolute URL must match your app's redirect_uri registered in Azure Portal
+            prompt="select_account",  # Optional. More values defined in  https://openid.net/specs/openid-connect-core-1_0.html#AuthRequest
+            )
+        return render_template("login.html", **user_auth)
+    return redirect(url_for("index") + f"?redir_uri={request.args.get('redir_uri', '')}")
 
 
 @app.route(app_config.REDIRECT_PATH)
@@ -72,7 +85,7 @@ def index():
     if request.args.get('redir_uri', '') != '' and max([request.args.get('redir_uri').find(uri) for uri in acceptable_redir]) == 0:
         redir_dict = dict(id=f"{session.sid}", redir_uri=request.args.get('redir_uri'), user_id='anon')
         container.upsert_item(
-                body=token_dict
+                body=redir_dict
             )
     if not auth.get_user():
         return redirect(url_for("login"))
@@ -86,7 +99,8 @@ def index():
     ).json()
     import datetime
     expires = datetime.datetime.utcnow() + datetime.timedelta(seconds=token['expires_in'])
-    for item in container.query_items(query=f'SELECT * FROM access a WHERE a.id = "{session.sid}"', enable_cross_partition_query=True):
+    redir_uri= ''
+    for item in container.query_items(query=f'SELECT * FROM access a WHERE a.id = "{session.sid}" and a.user_id="anon"', enable_cross_partition_query=True):
         if item.get('redir_uri', '') != '':
             redir_uri=item.get('redir_uri', '')
         try:
@@ -108,7 +122,7 @@ def index():
         timeout=30,
     ).json()
     permissions = [g.get('id') for g in api_result.get('value')]
-    return render_template('index.html', user=auth.get_user(), permissions=permissions)
+    return render_template('index.html', user=auth.get_user(), permissions=permissions, access_token=session.sid)
 
 
 @app.route("/call_downstream_api")
@@ -133,12 +147,15 @@ def call_downstream_api():
     return render_template('display.html', result=api_result)
 
 
-@app.route("/token/<user_id>")
-def user_token(user_id):
+@app.route("/token/<token_id>")
+def user_token(token_id):
+    print(request.headers)
+    request_origin = request.headers.get('Origin', '')
     values = list(container.query_items(
-            query=f"SELECT * FROM access z WHERE z.user_id = @val",
+            query=f"SELECT * FROM access z WHERE z.id = @val AND z.redir_uri = @source",
             parameters=[
-                {"name": "@val", "value": user_id}
+                {"name": "@val", "value": token_id},
+                {"name": "@source", "value": request_origin}
             ],
             enable_cross_partition_query=True))
     for v in values:
@@ -148,8 +165,7 @@ def user_token(user_id):
         v.pop('_ts', None)
         v.pop('_attachments', None)
         v.pop('_etag', None)
-        v['_key'] = v['id']
-    return jsonify(values)
+    return jsonify(values)  
 
 if __name__ == "__main__":
     app.run(debug=True)
