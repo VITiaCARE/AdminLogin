@@ -7,3 +7,4 @@ requests==2.23.0
 identity==0.5.2
 python-dotenv==0.21.1
 gunicorn==20.1.0
+azure-cosmos==4.7.0

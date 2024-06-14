@@ -2,26 +2,74 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Microsoft Identity Python Web App: Index</title>
-</head>
-<body>
-    <h1>Microsoft Identity Python Web App</h1>
-    <h2>Welcome {{ user.get("name") }}!</h2>
+    <title>VITia Admin Console</title>
 
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet"
+      integrity="sha384-GLhlTQ8iRABdZLl6O3oVMWSktQOp6b7In1Zl3/Jr59b6EGGoI1aFkw7cmDA6j6gD" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"
+      integrity="sha384-w76AqPfDkMBDXo30jS1Sgez6pr3x5MlQ1ZAGC+nuZB+EYdgRZgiwxhTBTkF7CXvN"
+      crossorigin="anonymous"></script></head>
+<body>
+  <div class="m-5 text-center mx-auto p-5">
+    <!---->
+    <!---->
+
+    <div class="card shadow text-center mx-auto">
+      <!---->
+      <!---->
+      <div class="card-body">
+        <!---->
+        <!---->
+        <div class="mx-auto px-0"><img src="/static/img/logo_h.png" alt="VITiaCARE" width="200"
+            class="m-0 p-0 mx-auto d-block">
+    <h1>Admin console</h1>
+    <h2>Welcome {{ user.get("name") }}!</h2> <a href="/logout">Logout</a>
+    <div class="container">
+      <div class="row row-cols-4">
+        {% if "0ba36b32-e933-4617-ab91-fc3ef210d201" in permissions %}
+        <div class="col">
+          <div class="card">
+            <!-- <img src="..." class="card-img-top" alt="..."> -->
+            <div class="card-body">
+              <h5 class="card-title">Reporting</h5>
+              <p class="card-text">Basic static dashboard with realtime data</p>
+              <a href="#" class="btn btn-primary">Go</a>
+              <p class="fs-6 text-muted">Permission type: All team</p>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+        {% if "1eb5229e-a2d0-4d5d-9d02-eb9c9ef7df50" in permissions %}
+        <div class="col">
+          <div class="card">
+            <!-- <img src="..." class="card-img-top" alt="..."> -->
+            <div class="card-body">
+              <h5 class="card-title">Health Coach Space</h5>
+              <p class="card-text">CRM-like toolset for healthcoaches. Chat, support and patient profile access</p>
+              <a href="#" class="btn btn-primary">Go</a>
+              <p class="fs-6 text-muted">Permission type: Healthcoaches</p>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+
+<!-- Manage MCSFT Account???
     <ul>
-    {% if config.get("ENDPOINT") %}
-      <li><a href='/call_downstream_api'>Call a downstream API</a></li>
-    {% endif %}
 
     {% if config.get("B2C_PROFILE_AUTHORITY") %}
       <li><a href='{{Auth(session={}, authority=config["B2C_PROFILE_AUTHORITY"], client_id=config["CLIENT_ID"]).log_in(redirect_uri=url_for("auth_response", _external=True))["auth_uri"]}}'>Edit Profile</a></li>
     {% endif %}
 
-    <li><a href="/logout">Logout</a></li>
-    </ul>
+    </ul> -->
 
     <hr>
-    <footer style="text-align: right">Microsoft identity platform Web App Sample {{ version }}</footer>
+    <footer style="text-align: right">VITia Inc.</footer>
 </body>
 </html>
 

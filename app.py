@@ -2,12 +2,11 @@ import json
 import os
 import identity.web
 import requests
-from flask import Flask, redirect, render_template, request, session, url_for
+from flask import Flask, redirect, render_template, request, session, url_for, jsonify
 from flask_session import Session
 
 import app_config
 
-__version__ = "0.8.0"  # The version of this sample, for troubleshooting purpose
 
 app = Flask(__name__)
 app.config.from_object(app_config)
@@ -29,22 +28,27 @@ auth = identity.web.Auth(
     client_credential=app.config["CLIENT_SECRET"], 
 )
 
+import azure.cosmos.cosmos_client as cosmos_client
+client = cosmos_client.CosmosClient(os.environ['COSMOS_STATIC_CATALOGUES_HOST'], {'masterKey': os.environ['COSMOS_STATIC_CATALOGUES_MASTER_KEY']} )
+db_id = os.environ['COSMOS_STATIC_CATALOGUES_DATABASE_ID']
+db = client.get_database_client('admin')
+db.read()
+container = db.get_container_client('access')
+container.read()
+
 
 @app.route("/login")
 def login():
-    session.redir_uri = request.args.get('redir_uri', session.get('redir_uri', ''))
-    redir_uri = request.args.get('redir_uri', session.get('redir_uri', url_for("auth_response", _external=True)))
     user_auth = auth.log_in(
         scopes=app_config.SCOPE, # Have user consent to scopes during log-in
-        redirect_uri=redir_uri, # Optional. If present, this absolute URL must match your app's redirect_uri registered in Azure Portal
+        redirect_uri= url_for("auth_response", _external=True), # Optional. If present, this absolute URL must match your app's redirect_uri registered in Azure Portal
         prompt="select_account",  # Optional. More values defined in  https://openid.net/specs/openid-connect-core-1_0.html#AuthRequest
         )
-    return render_template("login.html", version=__version__, **user_auth)
+    return render_template("login.html", **user_auth)
 
 
 @app.route(app_config.REDIRECT_PATH)
 def auth_response():
-    session.redir_uri = request.args.get('redir_uri', session.get('redir_uri', ''))
     result = auth.complete_log_in(request.args)
     if "error" in result:
         return render_template("auth_error.html", result=result)
@@ -59,28 +63,59 @@ def logout():
 
 @app.route("/")
 def index():
-    session.redir_uri = request.args.get('redir_uri', session.get('redir_uri', ''))
     if not (app.config["CLIENT_ID"] and app.config["CLIENT_SECRET"]):
         # This check is not strictly necessary.
         # You can remove this check from your production code.
         return render_template('config_error.html')
+    acceptable_redir = json.loads(os.getenv('ACCEPTED_REDIR_URIS', []))
+    redir_dict = { 'redir_uri' : ''}
+    if request.args.get('redir_uri', '') != '' and max([request.args.get('redir_uri').find(uri) for uri in acceptable_redir]) == 0:
+        redir_dict = dict(id=f"{session.sid}", redir_uri=request.args.get('redir_uri'), user_id='anon')
+        container.upsert_item(
+                body=token_dict
+            )
     if not auth.get_user():
         return redirect(url_for("login"))
-        return render_template("auth_error.html", result=result)
-    acceptable_redir = json.loads(os.getenv('ACCEPTED_REDIR_URIS', []))
     token = auth.get_token_for_user(app_config.SCOPE)
     if "error" in token:
         return redirect(url_for("login"))
-    if session.get('redir_uri', '') != '':
-        return redirect(session.get('redir_uri', '') + f"?access_token={token['access_token']}")
-    return render_template('index.html', user=auth.get_user(), version=__version__)
+    api_result = requests.get(
+        f"https://graph.microsoft.com/v1.0/me",
+        headers={'Authorization': 'Bearer ' + token['access_token']},
+        timeout=30,
+    ).json()
+    import datetime
+    expires = datetime.datetime.utcnow() + datetime.timedelta(seconds=token['expires_in'])
+    for item in container.query_items(query=f'SELECT * FROM access a WHERE a.id = "{session.sid}"', enable_cross_partition_query=True):
+        if item.get('redir_uri', '') != '':
+            redir_uri=item.get('redir_uri', '')
+        try:
+            container.delete_item(item, partition_key="anon")
+        except:
+            print(f"No anon for {session.sid} to delete")
+    token_dict = dict(id=f"{session.sid}", user_id=api_result.get('id'), token=token['access_token'], expires=expires.isoformat(), token_type=token['token_type'], redir_uri=redir_uri)
+    container.upsert_item(
+            body=token_dict
+        )
+    
+    if token_dict.get('redir_uri', '') != '' and max([token_dict.get('redir_uri').find(uri) for uri in acceptable_redir]) == 0:
+        return redirect(token_dict.get('redir_uri', '') + f"?access_token={session.sid}")
+    
+
+    api_result = requests.get(
+        f"https://graph.microsoft.com/v1.0/me/memberOf",
+        headers={'Authorization': 'Bearer ' + token['access_token']},
+        timeout=30,
+    ).json()
+    permissions = [g.get('id') for g in api_result.get('value')]
+    return render_template('index.html', user=auth.get_user(), permissions=permissions)
 
 
 @app.route("/call_downstream_api")
 def call_downstream_api():
     token = auth.get_token_for_user(app_config.SCOPE)
     if "error" in token:
-        return redirect(url_for("login"))
+        return redirect(url_for("login")) 
     # Use access token to call downstream api
     api_result = requests.get(
         app_config.ENDPOINT,
@@ -98,6 +133,24 @@ def call_downstream_api():
     return render_template('display.html', result=api_result)
 
 
+@app.route("/token/<user_id>")
+def user_token(user_id):
+    values = list(container.query_items(
+            query=f"SELECT * FROM access z WHERE z.user_id = @val",
+            parameters=[
+                {"name": "@val", "value": user_id}
+            ],
+            enable_cross_partition_query=True))
+    for v in values:
+        v.pop('_self', None)
+        v.pop('_ts', None)
+        v.pop('_rid', None)
+        v.pop('_ts', None)
+        v.pop('_attachments', None)
+        v.pop('_etag', None)
+        v['_key'] = v['id']
+    return jsonify(values)
+
 if __name__ == "__main__":
-    app.run()
+    app.run(debug=True)
  

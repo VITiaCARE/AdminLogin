@@ -2,29 +2,42 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Microsoft Identity Python Web App: Login</title>
+    <title>VITia Admin Console Login</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet"
+      integrity="sha384-GLhlTQ8iRABdZLl6O3oVMWSktQOp6b7In1Zl3/Jr59b6EGGoI1aFkw7cmDA6j6gD" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"
+      integrity="sha384-w76AqPfDkMBDXo30jS1Sgez6pr3x5MlQ1ZAGC+nuZB+EYdgRZgiwxhTBTkF7CXvN"
+      crossorigin="anonymous"></script>
+  
 </head>
 <body>
-    <h1>Microsoft Identity Python Web App</h1>
+  <div class="m-5 text-center mx-auto p-5">
+    <!---->
+    <!---->
 
-    {% if user_code %}
-    <ol>
-      <li>To sign in, type <b>{{ user_code }}</b> into
-        <a href='{{ auth_uri }}' target=_blank>{{ auth_uri }}</a>
-        to authenticate.
-      </li>
-      <li>And then <a href="{{ url_for('auth_response') }}">proceed</a>.</li>
-    </ol>
-    {% else %}
-    <ul><li><a href='{{ auth_uri }}'>Sign In</a></li></ul>
-    {% endif %}
-
-    {% if config.get("B2C_RESET_PASSWORD_AUTHORITY") %}
-    <a href='{{Auth(session={}, authority=config["B2C_RESET_PASSWORD_AUTHORITY"], client_id=config["CLIENT_ID"]).log_in(redirect_uri=url_for("auth_response", _external=True))["auth_uri"]}}'>Reset Password</a>
-    {% endif %}
-
+    <div class="card shadow text-center mx-auto">
+      <!---->
+      <!---->
+      <div class="card-body">
+        <!---->
+        <!---->
+        <div class="mx-auto px-0"><img src="/static/img/logo_h.png" alt="VITiaCARE" width="200"
+            class="m-0 p-0 mx-auto d-block">
+          <hr>
+          <a href='{{ auth_uri }}' class="text-decoration-none">
+            <div class="p-3 border d-inline-flex align-items-center">
+              <img src="/static/img/ms-symbollockup_mssymbol_19.png" alt="VITiaCARE" width="40"
+            class="mx-3 p-0 mx-auto d-block">
+              <span class="mx-3 text-decoration-none text-dark">Login with your @vitiacare.com account.</span>
+            </div>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+  
     <hr>
-    <footer style="text-align: right">Microsoft identity platform Web App Sample {{ version }}</footer>
+    <footer style="text-align: right">VITia Inc.</footer>
 </body>
 </html>
 
