@@ -73,6 +73,8 @@ def auth_response():
 
 @app.route("/logout")
 def logout():
+    for item in container.query_items(query=f'SELECT * FROM access a WHERE a.id = "{session.sid}"', enable_cross_partition_query=True):
+        container.delete_item(item, partition_key="anon")
     return redirect(auth.log_out(url_for("index", _external=True)))
 
 
@@ -160,7 +162,8 @@ def user_token(token_id):
                 {"name": "@source", "value": request_origin}
             ],
             enable_cross_partition_query=True))
-    print(f"SELECT * FROM access z WHERE z.id = {token_id} AND z.redir_uri like {request_origin}")
+    if len(values) < 1:
+        return jsonify({'error' : True, 'error_code': 404, 'error_desc': "Not Found"}), 404
     for v in values:
         v.pop('_self', None)
         v.pop('_ts', None)
