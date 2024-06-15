@@ -74,7 +74,7 @@ def auth_response():
 @app.route("/logout")
 def logout():
     for item in container.query_items(query=f'SELECT * FROM access a WHERE a.id = "{session.sid}"', enable_cross_partition_query=True):
-        container.delete_item(item, partition_key="anon")
+        container.delete_item(item, partition_key=item.get('user_id'))
     return redirect(auth.log_out(url_for("index", _external=True)))
 
 
