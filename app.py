@@ -154,7 +154,6 @@ def call_downstream_api():
 @app.route("/token/<token_id>")
 def user_token(token_id):
     request_origin = request.headers.get('Origin', '')
-    print(request.headers)
     values = list(container.query_items(
             query=f"SELECT * FROM access z WHERE z.id = @val AND (z.redir_uri = @source or z.redir_uri like '{request_origin}/%')",
             parameters=[
@@ -172,6 +171,24 @@ def user_token(token_id):
         v.pop('_attachments', None)
         v.pop('_etag', None)
     return jsonify(values)  
+
+
+@app.route("/healthcoachtoken/<token_id>")
+def ep_hc_token(token_id):
+    request_origin = request.headers.get('Origin', '')
+    values = list(container.query_items(
+            query=f"SELECT * FROM access z WHERE z.id = @val AND (z.redir_uri = @source or z.redir_uri like '{request_origin}/%')",
+            parameters=[
+                {"name": "@val", "value": token_id},
+                {"name": "@source", "value": request_origin}
+            ],
+            enable_cross_partition_query=True))
+    if len(values) < 1:
+        return jsonify({'error' : True, 'error_code': 404, 'error_desc': "Not Found"}), 404
+    from helpers import User
+    user = User()
+    user.authenticate(username=os.environ['HC_LOGIN'], password=os.environ['HC_SECRET'])
+    return jsonify({'userToken':user.get_user_token()})  
 
 if __name__ == "__main__":
     app.run(debug=True)
