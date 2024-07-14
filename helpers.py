@@ -141,6 +141,9 @@ class VitiaObject(Interface):
     def set_id(self, obj_id):
         self.obj_id = obj_id
         self.value._key = obj_id
+        
+    def get_user_id(self):
+        return self.user_id
 
     def set_access_token(self, access_token):
         self.access_token = {'Access-Token':access_token}
