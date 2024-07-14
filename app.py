@@ -188,9 +188,7 @@ def ep_hc_token(token_id):
     from helpers import User
     user = User()
     user.authenticate(username=os.environ['HC_LOGIN'], password=os.environ['HC_SECRET'])
-    user.set_user_id(os.environ['HC_LOGIN'])
-    user.get_user_info()
-    return jsonify({'userToken':user.get_user_token(), 'userId': user.get_user_id()})  
+    return jsonify({'userToken':user.get_user_token(), 'userId': os.environ['HC_ID']})  
 
 if __name__ == "__main__":
     app.run(debug=True)
