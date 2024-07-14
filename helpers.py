@@ -175,7 +175,7 @@ class User(VitiaObject):
             self.set_user_token(user_token)
 
     def get_user_info(self):
-        self.send_request('GET', "oauth/userinfo")    
+        self.send_request('GET', "/api/v2/oauth/userinfo")    
         if self.response.status_code == 200:
             self.response.error = False
             data = self.response.json()
