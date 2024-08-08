@@ -95,7 +95,8 @@ def index():
         return redirect(url_for("login"))
     token = auth.get_token_for_user(app_config.SCOPE)
     if "error" in token:
-        return redirect(url_for("login"))
+        auth.log_out(url_for("login") + f"?redir_uri={request.args.get('redir_uri', '')}")
+        return redirect(url_for("login") + f"?redir_uri={request.args.get('redir_uri', '')}")
     api_result = requests.get(
         f"https://graph.microsoft.com/v1.0/me",
         headers={'Authorization': 'Bearer ' + token['access_token']},
